@@ -63,32 +63,37 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
         },
         path(Segment) { id =>
           concat(
-            get {
-              complete(postRepository.getPost(id))
-            },
-            post {
-              entity(as[UpdatePost]) { updatedPost =>
-                complete(postRepository.updatePost(id, updatedPost))
+              get {
+                complete(postRepository.getPost(id))
+              },
+              post {
+                entity(as[UpdatePost]) { updatedPost =>
+                  complete(postRepository.updatePost(id, updatedPost))
+                }
+              },
+              delete {
+                complete(postRepository.deletePost(id))
+              },
+            concat(
+              path("like"){
+                post{
+                  entity(as[UpdatePost]){ post=>
+                    complete(postRepository.likePost(id,post))
+                  }
+                }
               }
-            },
-            delete {
-              complete(postRepository.deletePost(id))
-            }
+            )
           )
         }
       )
     }
   }
-  def like  = {
 
-
-  }
 
   override def route = {
     concat(
       users,
-      posts,
-      like,
+      posts
     )
   }
 }

@@ -13,6 +13,7 @@ trait PostRepository {
   def updatePost(id: String, post: UpdatePost): Future[Option[Post]]
 
   def deletePost(id: String): Future[Option[Post]]
+  def likePost(id:String, post1:UpdatePost): Future[Option[Post]]
 
 }
 
@@ -56,9 +57,10 @@ class InMemoryPostRepository(initial:Seq[Post] = Seq.empty)(implicit ex: Executi
         })
         updatedPost
       case None => updatedPost
-
     }
+
   }
+
 
   override def deletePost(id: String): Future[Option[Post]] = Future.successful {
     val deletedPost = posts.find(_.id == id)
@@ -66,4 +68,21 @@ class InMemoryPostRepository(initial:Seq[Post] = Seq.empty)(implicit ex: Executi
     deletedPost
   }
 
+  override def likePost(id: String,post1:UpdatePost): Future[Option[Post]] = Future.successful{
+    val post = posts.find(post => post.id == id)
+    post match {
+      case Some(x:Post) =>
+        var toLikePost = x
+        toLikePost = toLikePost.copy(like_count = x.like_count+1)
+        posts = posts.map(post => {
+          if (post.id == toLikePost.id) {
+            toLikePost
+          } else {
+            post
+          }
+        })
+        post
+      case None => post
+    }
+  }
 }
