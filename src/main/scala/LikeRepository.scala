@@ -26,6 +26,7 @@ class InMemoryLikeRepository(initial:Seq[Like] = Seq.empty)(implicit ex: Executi
       case Some(x: Post) =>
         var postToUpdate = x
         postToUpdate = postToUpdate.copy(like_count = x.like_count + 1)
+        postToUpdate = postToUpdate.copy(like_count = data.like_count.getOrElse(x.like_count))
 
         posts = posts.map(post => {
           if (post.id == postToUpdate.id) {
