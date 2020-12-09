@@ -9,7 +9,7 @@ trait Router {
   def route: Route
 }
 
-class MyRouter(val usersRepository: InMemoryUsersRepository)(implicit system: ActorSystem[_],  ex:ExecutionContext)
+class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository: InMemoryPostRepository)(implicit system: ActorSystem[_],  ex:ExecutionContext)
   extends  Router
     with  Directives {
 
@@ -46,10 +46,49 @@ class MyRouter(val usersRepository: InMemoryUsersRepository)(implicit system: Ac
       )
     }
   }
+  def posts = {
+    pathPrefix("posts") {
+      concat(
+        pathEnd {
+          concat(
+            get {
+              complete(postRepository.all())
+            },
+            post {
+              entity(as[CreatePost]) { createPost =>
+                complete(postRepository.createPost(createPost))
+              }
+            }
+          )
+        },
+        path(Segment) { id =>
+          concat(
+            get {
+              complete(postRepository.getPost(id))
+            },
+            post {
+              entity(as[UpdatePost]) { updatedPost =>
+                complete(postRepository.updatePost(id, updatedPost))
+              }
+            },
+            delete {
+              complete(postRepository.deletePost(id))
+            }
+          )
+        }
+      )
+    }
+  }
+  def like  = {
+
+
+  }
 
   override def route = {
     concat(
-      users
+      users,
+      posts,
+      like,
     )
   }
 }

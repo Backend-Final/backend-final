@@ -14,10 +14,11 @@ object Main {
     implicit val executionContext = system.executionContext;
 
     val users: Seq[User] = Seq()
-//    val posts: Seq[Post] = Seq()
+    val posts: Seq[Post] = Seq()
 //    val likes: Seq[Like] = Seq()
     val usersRepository = new InMemoryUsersRepository(users)(executionContext)
-    val router = new MyRouter(usersRepository)(system, executionContext)
+    val postRepository = new InMemoryPostRepository(posts)(executionContext)
+    val router = new MyRouter(usersRepository, postRepository)(system, executionContext)
 //    val router = new MyRouter(usersRepository, postsRepository)(system, executionContext)
     val host = "localhost"
 //    val host = "0.0.0.0"
