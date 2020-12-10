@@ -8,7 +8,8 @@ case class UpdateUser(username: Option[String], email: Option[String], password:
 
 case class Post(id: String, title: String, content: String, like_count: Int, user_id: String)
 case class CreatePost(title:String, content:String, user_id: String)
-case class UpdatePost(title:Option[String], content:Option[String], like_count:Option[Int])
-//case class Comment(id: String, post_id: String, user_id: String, content: String)
+case class UpdatePost(title:Option[String], content:Option[String])
+
+
 case class Like(id: String, post_id: String, user_id: String, time:DateTime)
-case class CreateLike(post_id:String, user_id:String, time:DateTime)
+case class CreateLike(user_id:String)

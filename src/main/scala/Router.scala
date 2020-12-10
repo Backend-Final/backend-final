@@ -1,9 +1,10 @@
 import akka.actor.typed.ActorSystem
-import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import akka.http.scaladsl.server.{Directives, Route}
-
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
+import scala.util.{Failure, Success, Try}
 import scala.concurrent.ExecutionContext
 import io.circe.generic.auto._
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+import akka.http.scaladsl.server.{Directives, Route}
 
 trait Router {
   def route: Route
@@ -11,19 +12,32 @@ trait Router {
 
 class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository: InMemoryPostRepository)(implicit system: ActorSystem[_],  ex:ExecutionContext)
   extends  Router
-    with  Directives {
+    with  Directives
+    with ValidatorDirectives {
 
   def users = {
     pathPrefix("users") {
       concat(
-        pathEnd {
+        pathEndOrSingleSlash {
           concat(
             get {
               complete(usersRepository.all())
             },
             post {
               entity(as[CreateUser]) { createUser =>
-                complete(usersRepository.registerUser(createUser))
+                validateWith(CreateUserValidator)(createUser) {
+                  onComplete(usersRepository.doesUserExist(createUser.username, createUser.email)) {
+                    case Success(error: Option[APIError]) => {
+                      error match {
+                        case Some(x: APIError) => {
+                          complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                            s"""{"message": "${x.msg}"}""")))
+                        }
+                        case None => complete(usersRepository.registerUser(createUser))
+                      }
+                    }
+                  }
+                }
               }
             }
           )
@@ -31,15 +45,57 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
         path(Segment) { id =>
           concat(
             get {
-              complete(usersRepository.getUser(id))
+              onComplete(usersRepository.checkUserById(id)) {
+                case Success(error: Option[APIError]) => {
+                  error match {
+                    case Some(x: APIError) => {
+                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                        s"""{"message": "${x.msg}"}""")))
+                    }
+                    case None => complete(usersRepository.getUser(id))
+                  }
+                }
+              }
             },
             put {
-              entity(as[UpdateUser]) { updateUser =>
-                complete(usersRepository.updateUser(id, updateUser))
+              onComplete(usersRepository.checkUserById(id)) {
+                case Success(error: Option[APIError]) => {
+                  error match {
+                    case Some(x: APIError) => {
+                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                        s"""{"message": "${x.msg}"}""")))
+                    }
+                    case None => entity(as[UpdateUser]) { updateUser =>
+                      validateWith(UpdateUserValidator)(updateUser) {
+                        onComplete(usersRepository.doesUserExist(updateUser.username.getOrElse(""), updateUser.email.getOrElse(""))) {
+                          case Success(error: Option[APIError]) => {
+                            error match {
+                              case Some(x: APIError) => {
+                                complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                                  s"""{"message": "${x.msg}"}""")))
+                              }
+                              case None => complete(usersRepository.updateUser(id, updateUser))
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             },
             delete {
-              complete(usersRepository.deleteUser(id))
+              onComplete(usersRepository.checkUserById(id)) { //Need to wrap not found logic into function
+                case Success(error: Option[APIError]) => {
+                  error match {
+                    case Some(x: APIError) => {
+                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                        s"""{"message": "${x.msg}"}""")))
+                    }
+                    case None => complete(usersRepository.deleteUser(id))
+                  }
+                }
+              }
             }
           )
         }
@@ -49,7 +105,7 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
   def posts = {
     pathPrefix("posts") {
       concat(
-        pathEnd {
+        pathEndOrSingleSlash {
           concat(
             get {
               complete(postRepository.allPosts())
@@ -66,7 +122,7 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
               get {
                 complete(postRepository.getPost(id))
               },
-              post {
+              put {
                 entity(as[UpdatePost]) { updatedPost =>
                   complete(postRepository.updatePost(id, updatedPost))
                 }
@@ -76,17 +132,21 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
               },
           )
         },
-        path(Segment/"like"){id=>
+        path(Segment/"like"){ id =>
           concat(
-              post{
-                  complete(postRepository.likePost(id))
+              post {
+                entity(as[CreateLike]) { createLike =>
+                  complete(postRepository.likePost(id, createLike.user_id))
                 }
+              }
           )
         },
-        path(Segment/"dislike"){id=>
+        path(Segment/"dislike"){id =>
           concat(
-            post{
-              complete(postRepository.dislikePost(id))
+            post {
+              entity(as[CreateLike]) { createLike =>
+                complete(postRepository.dislikePost(id, createLike.user_id))
+              }
             }
           )
         }

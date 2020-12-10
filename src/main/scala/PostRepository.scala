@@ -11,9 +11,8 @@ trait PostRepository {
   def getPost(id:String): Future[Option[Post]]
   def updatePost(id: String, post: UpdatePost): Future[Option[Post]]
   def deletePost(id: String): Future[Option[Post]]
-  def likePost(id:String): Future[Option[Post]]
-  def dislikePost(id:String):Future[Option[Post]]
-
+  def likePost(post_id:String, user_id: String): Future[Option[Post]]
+  def dislikePost(post_id:String, user_id: String):Future[Option[Post]]
 }
 
 class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=Seq.empty)(implicit ex: ExecutionContext) extends PostRepository {
@@ -48,7 +47,6 @@ class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=
         var postToUpdate = x
         postToUpdate = postToUpdate.copy(title = data.title.getOrElse(x.title))
         postToUpdate = postToUpdate.copy(content = data.content.getOrElse(x.content))
-        postToUpdate = postToUpdate.copy(like_count = data.like_count.getOrElse(x.like_count))
 
         posts = posts.map(post => {
           if (post.id == postToUpdate.id) {
@@ -57,33 +55,31 @@ class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=
             post
           }
         })
-        updatedPost
+        Some(postToUpdate)
       case None => updatedPost
     }
-
   }
-
 
   override def deletePost(id: String): Future[Option[Post]] = Future.successful {
     val deletedPost = posts.find(_.id == id)
     posts = posts.filter(post=>post.id!=id)
     deletedPost
   }
-  override def likePost(id: String): Future[Option[Post]] = Future.successful{
-    val post = posts.find(post => post.id == id)
 
-    val newLike = Like(
-      id = UUID.randomUUID().toString,
-      post_id = post.getOrElse(id).toString,
-      user_id = UUID.randomUUID().toString, // исправить на норм user_id
-      time = DateTime.now
-    )
-    likes = likes:+newLike
+  override def likePost(post_id: String, user_id: String): Future[Option[Post]] = Future.successful{
+    val post = posts.find(post => post.id == post_id)
 
     post match {
       case Some(x:Post) =>
         var toLikePost = x
-        toLikePost = toLikePost.copy(like_count = x.like_count+1)
+        toLikePost = toLikePost.copy(like_count = x.like_count + 1)
+        val newLike = Like(
+          id = UUID.randomUUID().toString,
+          post_id = toLikePost.id,
+          user_id = user_id,
+          time = DateTime.now
+        )
+        likes = likes :+ newLike
         posts = posts.map(post => {
           if (post.id == toLikePost.id) {
             toLikePost
@@ -91,21 +87,23 @@ class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=
             post
           }
         })
-        post
+        Some(toLikePost)
       case None => post
     }
   }
 
-  override def dislikePost(id: String): Future[Option[Post]] = Future.successful{
-    val post = posts.find(post => post.id == id)
+  override def dislikePost(post_id: String, user_id: String): Future[Option[Post]] = Future.successful{
+    val post = posts.find(post => post.id == post_id)
 
-    val like = likes.find(like=>like.post_id == id)
-    likes = likes.filter(like=>like.post_id!=id)
+    val like = likes.find(like => like.post_id == post_id)
+    likes = likes.filter(like => like.post_id != post_id)
 
     post match {
       case Some(x:Post) =>
         var toLikePost = x
-        toLikePost = toLikePost.copy(like_count = x.like_count-1)
+        if (toLikePost.like_count > 0) {
+          toLikePost = toLikePost.copy(like_count = x.like_count - 1)
+        }
         posts = posts.map(post => {
           if (post.id == toLikePost.id) {
             toLikePost
@@ -113,7 +111,7 @@ class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=
             post
           }
         })
-        post
+        Some(toLikePost)
       case None => post
     }
 

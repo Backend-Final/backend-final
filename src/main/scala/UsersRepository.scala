@@ -1,5 +1,6 @@
 import java.util.UUID
-
+import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.StatusCodes
 import scala.concurrent.{ExecutionContext, Future}
 
 trait UserRepository {
@@ -13,6 +14,9 @@ trait UserRepository {
 
   def deleteUser(id: String): Future[Option[User]]
 
+  def doesUserExist(username: String, email: String): Future[Option[APIError]]
+
+  def checkUserById(id: String): Future[Option[APIError]]
 }
 
 class InMemoryUsersRepository(initial:Seq[User] = Seq.empty)(implicit  ex:ExecutionContext) extends UserRepository {
@@ -56,7 +60,6 @@ class InMemoryUsersRepository(initial:Seq[User] = Seq.empty)(implicit  ex:Execut
         userToUpdate = userToUpdate.copy(surname = data.surname.getOrElse(x.surname))
         userToUpdate = userToUpdate.copy(password = data.password.getOrElse(x.password))
         userToUpdate = userToUpdate.copy(age = data.age.getOrElse(x.age))
-
         users = users.map(user => {
           if (user.id == userToUpdate.id) {
             userToUpdate
@@ -64,8 +67,27 @@ class InMemoryUsersRepository(initial:Seq[User] = Seq.empty)(implicit  ex:Execut
             user
           }
         })
-        updatedUser
+        Some(userToUpdate)
       case None => updatedUser
+    }
+  }
+
+  override def doesUserExist(username: String, email: String): Future[Option[APIError]] = Future.successful {
+    val user = users.find(user => user.username == username || user.email == email)
+
+    user match {
+      case Some(x: User) => Some(APIError(status = StatusCodes.Conflict, msg = s"Such user with " +
+        s"username:${username} or email: ${email} is already in database"))
+      case None => None
+    }
+  }
+
+  override def checkUserById(id: String): Future[Option[APIError]] = Future.successful {
+    val user = users.find(user => user.id == id)
+    user match {
+      case Some(x: User) => None
+      case None => Some(APIError(status = StatusCodes.NotFound, msg = s"Such user with " +
+        s"id:${id} does not exist in database"))
     }
   }
 }
