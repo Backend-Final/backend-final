@@ -102,6 +102,23 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
       )
     }
   }
+  post {
+    entity(as[CreateUser]) { createUser =>
+      validateWith(CreateUserValidator)(createUser) {
+        onComplete(usersRepository.doesUserExist(createUser.username, createUser.email)) {
+          case Success(error: Option[APIError]) => {
+            error match {
+              case Some(x: APIError) => {
+                complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                  s"""{"message": "${x.msg}"}""")))
+              }
+              case None => complete(usersRepository.registerUser(createUser))
+            }
+          }
+        }
+      }
+    }
+  }
   def posts = {
     pathPrefix("posts") {
       concat(
@@ -112,7 +129,19 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
             },
             post {
               entity(as[CreatePost]) { createPost =>
-                complete(postRepository.createPost(createPost))
+                validateWith(CreatePostValidator)(createPost) {
+                  onComplete(postRepository.checkPostExist(createPost.title)) {
+                    case Success(error: Option[APIError]) => {
+                      error match {
+                        case Some(x: APIError) => {
+                          complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                            s"""{"message": "${x.msg}"}""")))
+                        }
+                        case None => complete(postRepository.createPost(createPost))
+                      }
+                    }
+                  }
+                }
               }
             }
           )
@@ -120,15 +149,47 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
         path(Segment) { id =>
           concat(
               get {
-                complete(postRepository.getPost(id))
+                onComplete(postRepository.checkPostNotExist(id)) {
+                  case Success(error: Option[APIError]) => {
+                    error match {
+                      case Some(x: APIError) => {
+                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                          s"""{"message": "${x.msg}"}""")))
+                      }
+                      case None => complete(postRepository.getPost(id))
+                    }
+                  }
+                }
               },
-              put {
+              put{
                 entity(as[UpdatePost]) { updatedPost =>
-                  complete(postRepository.updatePost(id, updatedPost))
+                  validateWith(UpdatePostValidator)(updatedPost){
+                    onComplete(postRepository.checkPostNotExist(id)) {
+                      case Success(error: Option[APIError]) => {
+                        error match {
+                          case Some(x: APIError) => {
+                            complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                              s"""{"message": "${x.msg}"}""")))
+                          }
+                          case None => complete(postRepository.updatePost(id,updatedPost))
+                        }
+                      }
+                    }
+                  }
                 }
               },
               delete {
-                complete(postRepository.deletePost(id))
+                onComplete(postRepository.checkPostNotExist(id)) {
+                  case Success(error: Option[APIError]) => {
+                    error match {
+                      case Some(x: APIError) => {
+                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                          s"""{"message": "${x.msg}"}""")))
+                      }
+                      case None => complete(postRepository.deletePost(id))
+                    }
+                  }
+                }
               },
           )
         },
@@ -136,7 +197,17 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
           concat(
               post {
                 entity(as[CreateLike]) { createLike =>
-                  complete(postRepository.likePost(id, createLike.user_id))
+                  onComplete(postRepository.checkPostNotExist(id)) {
+                    case Success(error: Option[APIError]) => {
+                      error match {
+                        case Some(x: APIError) => {
+                          complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                            s"""{"message": "${x.msg}"}""")))
+                        }
+                        case None => complete(postRepository.likePost(id, createLike.user_id))
+                      }
+                    }
+                  }
                 }
               }
           )
@@ -145,7 +216,17 @@ class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository:
           concat(
             post {
               entity(as[CreateLike]) { createLike =>
-                complete(postRepository.dislikePost(id, createLike.user_id))
+                onComplete(postRepository.checkPostNotExist(id)) {
+                  case Success(error: Option[APIError]) => {
+                    error match {
+                      case Some(x: APIError) => {
+                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                          s"""{"message": "${x.msg}"}""")))
+                      }
+                      case None => complete(postRepository.dislikePost(id, createLike.user_id))
+                    }
+                  }
+                }
               }
             }
           )

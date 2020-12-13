@@ -1,4 +1,4 @@
-import akka.http.scaladsl.model.DateTime
+import akka.http.scaladsl.model.{DateTime, StatusCodes}
 
 import java.util.UUID
 import scala.concurrent.Future
@@ -13,6 +13,9 @@ trait PostRepository {
   def deletePost(id: String): Future[Option[Post]]
   def likePost(post_id:String, user_id: String): Future[Option[Post]]
   def dislikePost(post_id:String, user_id: String):Future[Option[Post]]
+  def checkPostNotExist(title:String): Future[Option[APIError]]
+  def checkPostExist(title:String): Future[Option[APIError]]
+
 }
 
 class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=Seq.empty)(implicit ex: ExecutionContext) extends PostRepository {
@@ -114,7 +117,24 @@ class InMemoryPostRepository(initial1:Seq[Post] = Seq.empty, initial2:Seq[Like]=
         Some(toLikePost)
       case None => post
     }
-
   }
+
+  override def checkPostNotExist(id: String): Future[Option[APIError]] = Future.successful{
+    val post = posts.find(post=>post.id == id)
+    post match {
+      case Some(x:Post)=>None
+      case None => Some(APIError(status = StatusCodes.NotFound, msg = s"Such post with " +
+        s"id:${id} does not exist in the database"))
+    }
+  }
+  override def checkPostExist(title: String): Future[Option[APIError]] = Future.successful{
+    val post = posts.find(post=>post.title == title)
+    post match {
+      case Some(x:Post)=>Some(APIError(status = StatusCodes.Conflict, msg = s"Such post with " +
+        s"title:${title} already exist in the database"))
+      case None => None
+    }
+  }
+
 
 }

@@ -1,4 +1,4 @@
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 
 trait Validator[T] {
   def validate(t: T): Option[APIError]
@@ -13,7 +13,8 @@ object CreateUserValidator extends Validator[CreateUser] {
     }
     else if (!emailRegex.findFirstMatchIn(createUser.email).isDefined) {
       Some(APIError(status = StatusCodes.BadRequest, msg = "email is not valid"))
-    } else if(createUser.password.isEmpty) {
+    }
+    else if(createUser.password.isEmpty) {
       Some(APIError(status = StatusCodes.BadRequest, msg = "password is required"))
     }
     else if(createUser.password.length < 8) {
@@ -87,6 +88,49 @@ object UpdateUserValidator extends Validator[UpdateUser] { //FIX ME: Validator f
         }
       }
     }
+    None
+  }
+
+}
+
+object CreatePostValidator extends Validator[CreatePost]{
+  override def validate(createPost: CreatePost): Option[APIError] = {
+    if(createPost.title.isEmpty){
+      Some(APIError(status = StatusCodes.BadRequest, msg = "title is empty"))
+    }
+    else if(createPost.content.isEmpty){
+      Some(APIError(status = StatusCodes.BadRequest, msg = "content is empty"))
+    }
+    else if(createPost.user_id.isEmpty){
+      Some(APIError(status = StatusCodes.BadRequest, msg = "you should assign user_id"))
+    }
+    else
+      None
+  }
+}
+
+object UpdatePostValidator extends Validator[UpdatePost]{
+  override def validate(updatePost: UpdatePost): Option[APIError] = {
+
+    updatePost.title match {
+      case Some(x: String) => {
+        if (x.isEmpty) {
+          Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+        }
+      }
+      case None =>
+        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+    }
+    updatePost.content match {
+      case Some(x: String) => {
+        if (x.isEmpty) {
+          Some(APIError(status = StatusCodes.BadRequest, msg = "content is required"))
+        }
+      }
+      case None =>
+        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+    }
+
     None
   }
 }
