@@ -4,33 +4,34 @@ import java.util.UUID
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.http.scaladsl.model.{DateTime, StatusCodes}
+import akka.http.scaladsl.model.StatusCodes
 import http.APIError
-import models.{Post, Like, CreatePostModel, UpdatePostModel}
+import models.{Post, CreatePostModel, UpdatePostModel}
 object PostManager {
   sealed trait Command
 
   final case class GetPostList(replyTo: ActorRef[Seq[Post]]) extends Command
+  final case class GetUsersPost(userId: String, replyTo: ActorRef[Seq[Post]]) extends Command
   final case class GetFilteredPostList(userId: String, replyTo: ActorRef[Seq[Post]]) extends Command
   final case class GetPost(postId: String, replyTo: ActorRef[Post]) extends Command
   final case class CreatePost(post: CreatePostModel, replyTo: ActorRef[Post]) extends Command
   final case class UpdatePost(postId: String, post: UpdatePostModel, replyTo: ActorRef[Post]) extends Command
   final case class DeletePost(postId: String, replyTo: ActorRef[ActionPerformedPost]) extends Command
   final case class CheckPostById(postId: String, replyTo: ActorRef[Option[APIError]]) extends Command
-
-  final case class LikePost(postId:String, userId:String, replyTo: ActorRef[Post]) extends Command
-  final case class DislikePost(postId:String, replyTo:ActorRef[Post]) extends Command
-  final case class GetLikeList(replyTo:ActorRef[Seq[Like]]) extends Command
+  final case class IncrementLikeCount(postId: String, replyTo: ActorRef[ActionPerformedPost]) extends Command
+  final case class DecrementLikeCount(postId: String, replyTo: ActorRef[ActionPerformedPost]) extends Command
 
   final case class ActionPerformedPost(message: String)
 
   var posts: Seq[Post] = Seq()
-  var likes: Seq[Like] = Seq()
 
   private def postManager(): Behavior[Command] =
     Behaviors.receiveMessagePartial {
       case GetPostList(replyTo) =>
         replyTo ! posts
+        Behaviors.same
+      case GetUsersPost(userId, replyTo) =>
+        replyTo ! posts.filter(post => post.user_id == userId)
         Behaviors.same
       case GetPost(postId, replyTo) =>
         val post = posts.find(post => post.id == postId)
@@ -57,6 +58,7 @@ object PostManager {
           case Some(x: Post) =>
             var postToUpdate = x
             postToUpdate = postToUpdate.copy(title = data.title.getOrElse(x.title))
+            postToUpdate = postToUpdate.copy(content = data.content.getOrElse(x.content))
             posts = posts.map(post => {
               if (post.id == postToUpdate.id) {
                 postToUpdate
@@ -88,50 +90,41 @@ object PostManager {
         }
         Behaviors.same
 
-      case LikePost(postId,userId, replyTo) =>
-        val post = posts.find(post=> post.id == postId)
-        val newLike = Like(
-          id = UUID.randomUUID().toString,
-          post_id = postId,
-          user_id = userId,
-          time = DateTime.now
-        )
-        likes = likes:+ newLike
+      case IncrementLikeCount(postId, replyTo) =>
+        val post = posts.find(post => post.id == postId)
         post match {
-          case Some(x:Post) =>
-            var toLikePost = x
-            toLikePost = toLikePost.copy(like_count = x.like_count+1)
+          case Some(x: Post) =>
+            val postToUpdate = x.copy(like_count = x.like_count + 1)
             posts = posts.map(post => {
-              if (post.id == toLikePost.id) {
-                toLikePost
+              if (post.id == postToUpdate.id) {
+                postToUpdate
               } else {
                 post
               }
             })
-            replyTo ! toLikePost
+            replyTo ! ActionPerformedPost(message = s"Post with id=${postId} is liked")
+            Behaviors.same
         }
-        Behaviors.same
 
-      case DislikePost(postId, replyTo) =>
-        val post = posts.find(post=> post.id == postId)
-        likes = likes.filter(like=>like.post_id!=postId)
+      case DecrementLikeCount(postId, replyTo) =>
+        val post = posts.find(post => post.id == postId)
         post match {
-          case Some(x:Post) =>
-            var toDisLikePost = x
-            toDisLikePost = toDisLikePost.copy(like_count = x.like_count-1)
+          case Some(x: Post) =>
+            var like_count = x.like_count;
+            if (like_count > 0) {
+              like_count = like_count - 1;
+            }
+            val postToUpdate = x.copy(like_count = like_count)
             posts = posts.map(post => {
-              if (post.id == toDisLikePost.id) {
-                toDisLikePost
+              if (post.id == postToUpdate.id) {
+                postToUpdate
               } else {
                 post
               }
             })
-            replyTo ! toDisLikePost
+            replyTo ! ActionPerformedPost(message = s"Post with id=${postId} is disliked")
+            Behaviors.same
         }
-        Behaviors.same
-      case GetLikeList(replyTo)=>
-        replyTo ! likes
-        Behaviors.same
     }
 
   def apply(): Behavior[Command] = postManager()

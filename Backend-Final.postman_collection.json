@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "55ddfb35-3f2d-427c-bdb3-2e62e6eba932",
+		"_postman_id": "bdcd080f-9e45-4885-b801-564a6f72dad3",
 		"name": "Backend-Final",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -57,13 +57,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{BASE_URL}}/users/4e2bfcbd-9996-4b4a-8a64-b8c31be55496",
+							"raw": "{{BASE_URL}}/users/5df45381-6aa5-4bab-a02e-bd79153fac93",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"users",
-								"4e2bfcbd-9996-4b4a-8a64-b8c31be55496"
+								"5df45381-6aa5-4bab-a02e-bd79153fac93"
 							]
 						}
 					},
@@ -75,13 +75,13 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{BASE_URL}}/users/df20ddb4-52b0-4d7b-a155-9e73d5ce7798",
+							"raw": "{{BASE_URL}}/users/1",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"users",
-								"df20ddb4-52b0-4d7b-a155-9e73d5ce7798"
+								"1"
 							]
 						}
 					},
@@ -94,7 +94,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"asuleiman\",\n    \"email\": \"asuleiman@gmail.com\",\n    \"password\": \"test1234\",\n    \"name\": \"Assyl\",\n    \"surname\": \"Suleiman\",\n    \"age\": 20\n}",
+							"raw": "{\n    \"username\": \"asik\",\n    \"email\": \"asuleiman@gmail.com\",\n    \"password\": \"test1234\",\n    \"name\": \"Assyl\",\n    \"surname\": \"Suleiman\",\n    \"age\": 20\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -102,13 +102,13 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/users/f9fc11f3-6f26-48d5-99b4-7603696f5003",
+							"raw": "{{BASE_URL}}/users/5df45381-6aa5-4bab-a02e-bd79153fac93",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"users",
-								"f9fc11f3-6f26-48d5-99b4-7603696f5003"
+								"5df45381-6aa5-4bab-a02e-bd79153fac93"
 							]
 						}
 					},
@@ -144,7 +144,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"title\":\"\",\n    \"content\": \"This is final project\",\n    \"user_id\": \"2e1f34ef-fcb4-4fb5-bd93-583ee46d3a77\"\n}",
+							"raw": "{\n    \"title\": \"Post Check 2\",\n    \"content\": \"This is final project\",\n    \"user_id\": \"5df45381-6aa5-4bab-a02e-bd79153fac93\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -169,13 +169,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{BASE_URL}}/posts/8c24879a-8e2b-4719-88b6-d57c71e7f4e3",
+							"raw": "{{BASE_URL}}/posts/01928c4a-b750-4be3-8951-53461f02b519",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"posts",
-								"8c24879a-8e2b-4719-88b6-d57c71e7f4e3"
+								"01928c4a-b750-4be3-8951-53461f02b519"
 							]
 						}
 					},
@@ -188,7 +188,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"title\": \"\",\n    \"content\": \"\"\n}",
+							"raw": "{\n    \"title\": \"Post Check 2\",\n    \"content\": \"asdfdsaasdf\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -196,13 +196,13 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/posts/f3db6417-fbe9-4d6f-9405-2de6cbc42d64",
+							"raw": "{{BASE_URL}}/posts/01928c4a-b750-4be3-8951-53461f02b519",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"posts",
-								"f3db6417-fbe9-4d6f-9405-2de6cbc42d64"
+								"01928c4a-b750-4be3-8951-53461f02b519"
 							]
 						}
 					},
@@ -214,26 +214,26 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{BASE_URL}}/posts/f3db6417-fbe9-4d6f-9405-2de6cbc42d64",
+							"raw": "{{BASE_URL}}/posts/6556b40d-0c0b-44c6-a756-7b085642d986",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"posts",
-								"f3db6417-fbe9-4d6f-9405-2de6cbc42d64"
+								"6556b40d-0c0b-44c6-a756-7b085642d986"
 							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "PUT Like Post",
+					"name": "POST Posts with user_id",
 					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"user_id\": \"2e1f34ef-fcb4-4fb5-bd93-583ee46d3a77\"\n}",
+							"raw": "{\n    \"user_id\": \"5df45381-6aa5-4bab-a02e-bd79153fac93\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -241,27 +241,49 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/posts/0b2939b6-e9d6-4467-8e3a-49394eb83bae/like",
+							"raw": "{{BASE_URL}}/posts/by-user",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
 								"posts",
-								"0b2939b6-e9d6-4467-8e3a-49394eb83bae",
-								"like"
+								"by-user"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Likes",
+			"item": [
+				{
+					"name": "LIST Likes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/likes",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"likes"
 							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "PUT  DisLike Post",
+					"name": "POST LIke",
 					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"user_id\": \"2e1f34ef-fcb4-4fb5-bd93-583ee46d3a77\"\n}",
+							"raw": "{\n    \"user_id\": \"5df45381-6aa5-4bab-a02e-bd79153fac93\",\n    \"post_id\": \"01928c4a-b750-4be3-8951-53461f02b519\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -269,14 +291,57 @@
 							}
 						},
 						"url": {
-							"raw": "{{BASE_URL}}/posts/0b2939b6-e9d6-4467-8e3a-49394eb83bae/dislike",
+							"raw": "{{BASE_URL}}/likes",
 							"host": [
 								"{{BASE_URL}}"
 							],
 							"path": [
-								"posts",
-								"0b2939b6-e9d6-4467-8e3a-49394eb83bae",
-								"dislike"
+								"likes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST Likes of Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"post_id\": \"01928c4a-b750-4be3-8951-53461f02b519\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/likes/by-post",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"likes",
+								"by-post"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DELET Like",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/likes/536a855b-655d-414d-ace7-98592233b671",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"likes",
+								"536a855b-655d-414d-ace7-98592233b671"
 							]
 						}
 					},

@@ -1,25 +1,29 @@
-import actors.UserManager
+import actors.LikeManager.{CreateLike, GetLikes, GetPostsLikes}
+import actors.{LikeManager, PostManager, UserManager}
 import actors.UserManager._
-import actors.PostManager
 import actors.PostManager._
+import actors.LikeManager._
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.generic.auto._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
+import akka.http.scaladsl.model.{DateTime, StatusCodes}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 import akka.http.scaladsl.server.{Directives, Route}
-import models.{CreatePostModel, CreateUserModel, UpdatePostModel, UpdateUserModel, User}
+import models.{CreatePostModel, CreateUserModel, PostIdWrapper, UpdatePostModel, UpdateUserModel, User, UserIdWrapper}
 import http.{APIError, CreatePostValidator, CreateUserValidator, UpdateUserValidator, ValidatorDirectives}
+
 trait Router {
   def route: Route
 }
 
-class TwitterRouter(userManagerActor: ActorRef[UserManager.Command], postManagerActor: ActorRef[PostManager.Command])(implicit val system: ActorSystem[_]) extends  Router
+class TwitterRouter(userManagerActor: ActorRef[UserManager.Command], postManagerActor: ActorRef[PostManager.Command],
+                    likeManagerActor: ActorRef[LikeManager.Command])(implicit val system: ActorSystem[_]) extends  Router
   with  Directives
   with ValidatorDirectives  {
 
@@ -96,15 +100,15 @@ class TwitterRouter(userManagerActor: ActorRef[UserManager.Command], postManager
 
 
   def getPostList(): Future[Seq[models.Post]] = postManagerActor.ask(GetPostList)
+  def getUsersPost(user_id: String): Future[Seq[models.Post]] = postManagerActor.ask(GetUsersPost(user_id, _))
   def getPost(postId:String): Future[models.Post] = postManagerActor.ask(GetPost(postId, _))
   def createPost(post:CreatePostModel):Future[models.Post] = postManagerActor.ask(CreatePost(post, _))
   def updatePost(postId:String, post:UpdatePostModel): Future[models.Post] = postManagerActor.ask(UpdatePost(postId, post, _))
   def deletePost(postId:String): Future[ActionPerformedPost] = postManagerActor.ask(DeletePost(postId,_))
   def checkPostExistenceById(postId:String): Future[Option[APIError]] = postManagerActor.ask(CheckPostById(postId, _))
+  def incrementLikeCount(postId: String): Future[ActionPerformedPost] = postManagerActor.ask(IncrementLikeCount(postId, _))
+  def decrementLikeCount(postId: String): Future[ActionPerformedPost] = postManagerActor.ask(DecrementLikeCount(postId, _))
 
-  def likePost(postId:String, userId:String): Future[models.Post] = postManagerActor.ask(LikePost(postId,userId, _))
-  def disLikePost(postId:String): Future[models.Post] = postManagerActor.ask(DislikePost(postId, _))
-  def getLikeList():Future[Seq[models.Like]] = postManagerActor.ask(GetLikeList)
 
   val postsRoutes: Route = pathPrefix("posts") {
     concat(
@@ -121,6 +125,23 @@ class TwitterRouter(userManagerActor: ActorRef[UserManager.Command], postManager
             }
           }
         )
+      },
+      path("by-user") {
+        post {
+          entity(as[UserIdWrapper]) { wrapper =>
+            val user_id = wrapper.user_id
+            onComplete(checkUserExistenceById(user_id)) {
+              case Success(error: Option[APIError]) => {
+                error match {
+                  case Some(x: APIError) =>
+                    complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                      s"""{"message": "${x.msg}"}""")))
+                  case None => complete(getUsersPost(user_id))
+                }
+              }
+            }
+          }
+        }
       },
       path(Segment) { id =>
         concat(
@@ -163,52 +184,95 @@ class TwitterRouter(userManagerActor: ActorRef[UserManager.Command], postManager
             }
           }
         )
-      },
-      path(Segment/"like") { id =>
-        concat(
-          put {
-            entity(as[models.CreateLike]){like =>
-              onComplete(checkPostExistenceById(id)) {
-                case Success(error: Option[APIError]) => {
-                  error match {
-                    case Some(x: APIError) =>
-                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                        s"""{"message": "${x.msg}"}""")))
-                    case None => complete(likePost(id,like.user_id))
-                  }
-                }
-              }
-            }
-
-          }
-        )
-      },
-      path(Segment/"dislike"){id=>
-        concat(
-          put{
-            onComplete(checkPostExistenceById(id)) {
-              case Success(error: Option[APIError]) => {
-                error match {
-                  case Some(x: APIError) =>
-                    complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                      s"""{"message": "${x.msg}"}""")))
-                  case None => complete(disLikePost(id))
-                }
-              }
-            }
-          }
-        )
       }
     )
   }
+
+  def getLikes(): Future[Seq[models.Like]] = likeManagerActor.ask(GetLikes)
+  def getPostsLikes(postId: String): Future[Seq[models.Like]] = likeManagerActor.ask(GetPostsLikes(postId, _))
+  def createLike(postId: String, userId: String): Future[models.Like] = likeManagerActor.ask(CreateLike(postId, userId, _))
+  def deleteLike(likeId: String): Future[models.Like] = likeManagerActor.ask(DeleteLike(likeId, _))
+  def checkLikeById(likeId: String): Future[Option[APIError]] = likeManagerActor.ask(CheckLikeById(likeId, _))
+
   val likesRoutes: Route = pathPrefix("likes") {
     concat(
       pathEndOrSingleSlash {
         concat(
           get {
-            complete(getLikeList())
+            complete(getLikes())
+          },
+          post {
+            entity(as[models.CreateLike]) { like =>
+              onComplete(checkPostExistenceById(like.post_id)) {
+                case Success(error: Option[APIError]) => {
+                  error match {
+                    case Some(x: APIError) =>
+                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                        s"""{"message": "${x.msg}"}""")))
+                    case None => {
+                      onComplete(checkUserExistenceById(like.user_id)) {
+                        case Success(error: Option[APIError]) => {
+                          error match {
+                            case Some(x: APIError) =>
+                              complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                                s"""{"message": "${x.msg}"}""")))
+                            case None => onComplete(createLike(like.post_id, like.user_id)) {
+                              case Success(like: models.Like) => {
+                                onComplete(incrementLikeCount(like.post_id)) {
+                                  case Success(value) => complete(HttpResponse(status = StatusCodes.OK,
+                                    entity = HttpEntity(ContentTypes.`application/json`,
+                                    s"""{"like_id": "${like.id}"}""")))
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         )
+      },
+      path("by-post") {
+        post {
+          entity(as[PostIdWrapper]) { postIdWrapper =>
+            val post_id = postIdWrapper.post_id
+            onComplete(checkPostExistenceById(post_id)) {
+              case Success(error: Option[APIError]) => {
+                error match {
+                  case Some(x: APIError) =>
+                    complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                      s"""{"message": "${x.msg}"}""")))
+                  case None => complete(getPostsLikes(post_id))
+                }
+              }
+            }
+          }
+        }
+      },
+      path(Segment) { id =>
+        delete {
+          onComplete(checkLikeById(id)) {
+            case Success(error: Option[APIError]) => {
+              error match {
+                case Some(x: APIError) =>
+                  complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                    s"""{"message": "${x.msg}"}""")))
+                case None => onComplete(deleteLike(id)) {
+                  case Success(like) =>
+                    onComplete(decrementLikeCount(like.post_id)) {
+                      case Success(value) => complete(HttpResponse(status = StatusCodes.OK,
+                        entity = HttpEntity(ContentTypes.`application/json`,
+                        s"""{"like_id": "${like.id}"}""")))
+                    }
+                }
+              }
+            }
+          }
+        }
       }
     )
   }
