@@ -1,13 +1,18 @@
+package http
+
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+
+import models.{CreateUserModel, UpdateUserModel}
+
 
 trait Validator[T] {
   def validate(t: T): Option[APIError]
 }
 
-object CreateUserValidator extends Validator[CreateUser] {
+object CreateUserValidator extends Validator[CreateUserModel] {
   private val emailRegex = """^[a-zA-Z0-9\.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$""".r
 
-  def validate(createUser: CreateUser): Option[APIError] =
+  def validate(createUser: CreateUserModel): Option[APIError] =
     if (createUser.username.isEmpty) {
       Some(APIError(status = StatusCodes.BadRequest, msg = "username is required"))
     }
@@ -33,10 +38,10 @@ object CreateUserValidator extends Validator[CreateUser] {
       None
 }
 
-object UpdateUserValidator extends Validator[UpdateUser] { //FIX ME: Validator fails when a field is None
+object UpdateUserValidator extends Validator[UpdateUserModel] { //FIX ME: Validator fails when a field is None
   private val emailRegex = """^[a-zA-Z0-9\.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$""".r
 
-  def validate(updateUser: UpdateUser): Option[APIError] = {
+  def validate(updateUser: UpdateUserModel): Option[APIError] = {
     updateUser.username match {
       case Some(x: String) => {
         if (updateUser.username.isEmpty) {
@@ -90,47 +95,46 @@ object UpdateUserValidator extends Validator[UpdateUser] { //FIX ME: Validator f
     }
     None
   }
-
 }
-
-object CreatePostValidator extends Validator[CreatePost]{
-  override def validate(createPost: CreatePost): Option[APIError] = {
-    if(createPost.title.isEmpty){
-      Some(APIError(status = StatusCodes.BadRequest, msg = "title is empty"))
-    }
-    else if(createPost.content.isEmpty){
-      Some(APIError(status = StatusCodes.BadRequest, msg = "content is empty"))
-    }
-    else if(createPost.user_id.isEmpty){
-      Some(APIError(status = StatusCodes.BadRequest, msg = "you should assign user_id"))
-    }
-    else
-      None
-  }
-}
-
-object UpdatePostValidator extends Validator[UpdatePost]{
-  override def validate(updatePost: UpdatePost): Option[APIError] = {
-
-    updatePost.title match {
-      case Some(x: String) => {
-        if (x.isEmpty) {
-          Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
-        }
-      }
-      case None =>
-        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
-    }
-    updatePost.content match {
-      case Some(x: String) => {
-        if (x.isEmpty) {
-          Some(APIError(status = StatusCodes.BadRequest, msg = "content is required"))
-        }
-      }
-      case None =>
-        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
-    }
-
-    None
-  }
-}
+//
+//object CreatePostValidator extends Validator[CreatePost]{
+//  override def validate(createPost: CreatePost): Option[APIError] = {
+//    if(createPost.title.isEmpty){
+//      Some(APIError(status = StatusCodes.BadRequest, msg = "title is empty"))
+//    }
+//    else if(createPost.content.isEmpty){
+//      Some(APIError(status = StatusCodes.BadRequest, msg = "content is empty"))
+//    }
+//    else if(createPost.user_id.isEmpty){
+//      Some(APIError(status = StatusCodes.BadRequest, msg = "you should assign user_id"))
+//    }
+//    else
+//      None
+//  }
+//}
+//
+//object UpdatePostValidator extends Validator[UpdatePost]{
+//  override def validate(updatePost: UpdatePost): Option[APIError] = {
+//
+//    updatePost.title match {
+//      case Some(x: String) => {
+//        if (x.isEmpty) {
+//          Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+//        }
+//      }
+//      case None =>
+//        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+//    }
+//    updatePost.content match {
+//      case Some(x: String) => {
+//        if (x.isEmpty) {
+//          Some(APIError(status = StatusCodes.BadRequest, msg = "content is required"))
+//        }
+//      }
+//      case None =>
+//        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+//    }
+//
+//    None
+//  }
+//}

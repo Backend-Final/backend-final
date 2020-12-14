@@ -1,259 +1,111 @@
-import akka.actor.typed.ActorSystem
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
-import scala.util.{Failure, Success, Try}
-import scala.concurrent.ExecutionContext
-import io.circe.generic.auto._
+import actors.UserManager
+import actors.UserManager._
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.util.Timeout
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import akka.http.scaladsl.server.{Directives, Route}
+import io.circe.generic.auto._
 
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
+import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
+import akka.http.scaladsl.server.{Directives, Route}
+import models.{User, CreateUserModel, UpdateUserModel}
+import http.{APIError, CreateUserValidator, UpdateUserValidator, ValidatorDirectives}
 trait Router {
   def route: Route
 }
 
-class MyRouter(val usersRepository: InMemoryUsersRepository, val postRepository: InMemoryPostRepository)(implicit system: ActorSystem[_],  ex:ExecutionContext)
-  extends  Router
-    with  Directives
-    with ValidatorDirectives {
+class TwitterRouter(userManagerActor: ActorRef[UserManager.Command])(implicit val system: ActorSystem[_]) extends  Router
+  with  Directives
+  with ValidatorDirectives  {
 
-  def users = {
-    pathPrefix("users") {
-      concat(
-        pathEndOrSingleSlash {
-          concat(
-            get {
-              complete(usersRepository.all())
-            },
-            post {
-              entity(as[CreateUser]) { createUser =>
-                validateWith(CreateUserValidator)(createUser) {
-                  onComplete(usersRepository.doesUserExist(createUser.username, createUser.email)) {
-                    case Success(error: Option[APIError]) => {
-                      error match {
-                        case Some(x: APIError) => {
-                          complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                            s"""{"message": "${x.msg}"}""")))
-                        }
-                        case None => complete(usersRepository.registerUser(createUser))
-                      }
-                    }
-                  }
-                }
+  private implicit val timeout = Timeout(20.seconds)
+
+  def getUserList(): Future[Seq[models.User]] = userManagerActor.ask(GetUserList)
+  def getUser(userId: String): Future[models.User] = userManagerActor.ask(GetUser(userId, _))
+  def createUser(user: CreateUserModel): Future[models.User] = userManagerActor.ask(CreateUser(user, _))
+  def updateUser(userId: String, user: UpdateUserModel): Future[models.User] = userManagerActor.ask(UpdateUser(userId, user, _))
+  def deleteUser(userId: String): Future[ActionPerformed] = userManagerActor.ask(DeleteUser(userId, _))
+  def checkUserExistenceById(userId: String): Future[Option[APIError]] = userManagerActor.ask(CheckUserById(userId, _))
+
+  val usersRoutes: Route = pathPrefix("users") {
+    concat(
+      pathEndOrSingleSlash {
+        concat(
+          get {
+            complete(getUserList())
+          },
+          post {
+            entity(as[CreateUserModel]) { user =>
+              validateWith(CreateUserValidator)(user) {
+                complete(createUser(user))
               }
-            }
-          )
-        },
-        path(Segment) { id =>
-          concat(
-            get {
-              onComplete(usersRepository.checkUserById(id)) {
-                case Success(error: Option[APIError]) => {
-                  error match {
-                    case Some(x: APIError) => {
-                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                        s"""{"message": "${x.msg}"}""")))
-                    }
-                    case None => complete(usersRepository.getUser(id))
-                  }
-                }
-              }
-            },
-            put {
-              onComplete(usersRepository.checkUserById(id)) {
-                case Success(error: Option[APIError]) => {
-                  error match {
-                    case Some(x: APIError) => {
-                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                        s"""{"message": "${x.msg}"}""")))
-                    }
-                    case None => entity(as[UpdateUser]) { updateUser =>
-                      validateWith(UpdateUserValidator)(updateUser) {
-                        onComplete(usersRepository.doesUserExist(updateUser.username.getOrElse(""), updateUser.email.getOrElse(""))) {
-                          case Success(error: Option[APIError]) => {
-                            error match {
-                              case Some(x: APIError) => {
-                                complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                                  s"""{"message": "${x.msg}"}""")))
-                              }
-                              case None => complete(usersRepository.updateUser(id, updateUser))
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            delete {
-              onComplete(usersRepository.checkUserById(id)) { //Need to wrap not found logic into function
-                case Success(error: Option[APIError]) => {
-                  error match {
-                    case Some(x: APIError) => {
-                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                        s"""{"message": "${x.msg}"}""")))
-                    }
-                    case None => complete(usersRepository.deleteUser(id))
-                  }
-                }
-              }
-            }
-          )
-        }
-      )
-    }
-  }
-  post {
-    entity(as[CreateUser]) { createUser =>
-      validateWith(CreateUserValidator)(createUser) {
-        onComplete(usersRepository.doesUserExist(createUser.username, createUser.email)) {
-          case Success(error: Option[APIError]) => {
-            error match {
-              case Some(x: APIError) => {
-                complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                  s"""{"message": "${x.msg}"}""")))
-              }
-              case None => complete(usersRepository.registerUser(createUser))
             }
           }
-        }
+        )
+      },
+      path(Segment) { id =>
+        concat(
+          get {
+            onComplete(checkUserExistenceById(id)) {
+              case Success(error: Option[APIError]) => {
+                error match {
+                  case Some(x: APIError) =>
+                    complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                      s"""{"message": "${x.msg}"}""")))
+                  case None => complete(getUser(id))
+                }
+              }
+            }
+          },
+          put {
+            entity(as[UpdateUserModel]) { user =>
+              onComplete(checkUserExistenceById(id)) {
+                case Success(error: Option[APIError]) => {
+                  error match {
+                    case Some(x: APIError) =>
+                      complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                        s"""{"message": "${x.msg}"}""")))
+                    case None => complete(updateUser(id, user))
+                  }
+                }
+              }
+//              validateWith(UpdateUserValidator)(user) {
+//                onComplete(checkUserExistenceById(id)) {
+//                  case Success(error: Option[APIError]) => {
+//                    error match {
+//                      case Some(x: APIError) =>
+//                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+//                          s"""{"message": "${x.msg}"}""")))
+//                      case None => complete(updateUser(id, user))
+//                    }
+//                  }
+//                }
+//              }
+            }
+          },
+          delete {
+            onComplete(checkUserExistenceById(id)) {
+              case Success(error: Option[APIError]) => {
+                error match {
+                  case Some(x: APIError) =>
+                    complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
+                      s"""{"message": "${x.msg}"}""")))
+                  case None => complete(deleteUser(id))
+                }
+              }
+            }
+          }
+        )
       }
-    }
+    )
   }
-  def posts = {
-    pathPrefix("posts") {
-      concat(
-        pathEndOrSingleSlash {
-          concat(
-            get {
-              complete(postRepository.allPosts())
-            },
-            post {
-              entity(as[CreatePost]) { createPost =>
-                validateWith(CreatePostValidator)(createPost) {
-                  onComplete(postRepository.checkPostExist(createPost.title)) {
-                    case Success(error: Option[APIError]) => {
-                      error match {
-                        case Some(x: APIError) => {
-                          complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                            s"""{"message": "${x.msg}"}""")))
-                        }
-                        case None => complete(postRepository.createPost(createPost))
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          )
-        },
-        path(Segment) { id =>
-          concat(
-              get {
-                onComplete(postRepository.checkPostNotExist(id)) {
-                  case Success(error: Option[APIError]) => {
-                    error match {
-                      case Some(x: APIError) => {
-                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                          s"""{"message": "${x.msg}"}""")))
-                      }
-                      case None => complete(postRepository.getPost(id))
-                    }
-                  }
-                }
-              },
-              put{
-                entity(as[UpdatePost]) { updatedPost =>
-                  validateWith(UpdatePostValidator)(updatedPost){
-                    onComplete(postRepository.checkPostNotExist(id)) {
-                      case Success(error: Option[APIError]) => {
-                        error match {
-                          case Some(x: APIError) => {
-                            complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                              s"""{"message": "${x.msg}"}""")))
-                          }
-                          case None => complete(postRepository.updatePost(id,updatedPost))
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              delete {
-                onComplete(postRepository.checkPostNotExist(id)) {
-                  case Success(error: Option[APIError]) => {
-                    error match {
-                      case Some(x: APIError) => {
-                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                          s"""{"message": "${x.msg}"}""")))
-                      }
-                      case None => complete(postRepository.deletePost(id))
-                    }
-                  }
-                }
-              },
-          )
-        },
-        path(Segment/"like"){ id =>
-          concat(
-              post {
-                entity(as[CreateLike]) { createLike =>
-                  onComplete(postRepository.checkPostNotExist(id)) {
-                    case Success(error: Option[APIError]) => {
-                      error match {
-                        case Some(x: APIError) => {
-                          complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                            s"""{"message": "${x.msg}"}""")))
-                        }
-                        case None => complete(postRepository.likePost(id, createLike.user_id))
-                      }
-                    }
-                  }
-                }
-              }
-          )
-        },
-        path(Segment/"dislike"){id =>
-          concat(
-            post {
-              entity(as[CreateLike]) { createLike =>
-                onComplete(postRepository.checkPostNotExist(id)) {
-                  case Success(error: Option[APIError]) => {
-                    error match {
-                      case Some(x: APIError) => {
-                        complete(HttpResponse(x.status, entity = HttpEntity(ContentTypes.`application/json`,
-                          s"""{"message": "${x.msg}"}""")))
-                      }
-                      case None => complete(postRepository.dislikePost(id, createLike.user_id))
-                    }
-                  }
-                }
-              }
-            }
-          )
-        }
-      )
-    }
-  }
-  def likes = {
-    pathPrefix("likes"){
-      concat(
-        get{
-          complete(postRepository.allLikes())
-        }
-      )
-    }
-  }
-
 
   override def route = {
     concat(
-      users,
-      posts,
-      likes
+      usersRoutes,
     )
   }
 }
-
-
-
-

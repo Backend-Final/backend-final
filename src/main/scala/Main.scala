@@ -3,27 +3,27 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import org.slf4j.{Logger, LoggerFactory}
-
+import actors.UserManager
 
 import scala.util.Try
 
 object Main {
   def main(args: Array[String]): Unit = {
     implicit val log: Logger = LoggerFactory.getLogger(getClass);
-    implicit val system = ActorSystem(Behaviors.empty, "final");
-    implicit val executionContext = system.executionContext;
 
-    val users: Seq[User] = Seq()
-    val posts: Seq[Post] = Seq()
-    val likes: Seq[Like] = Seq()
-    val usersRepository = new InMemoryUsersRepository(users)(executionContext)
-    val postRepository = new InMemoryPostRepository(posts,likes)(executionContext)
-    val router = new MyRouter(usersRepository, postRepository)(system, executionContext)
-//    val router = new MyRouter(usersRepository, postsRepository)(system, executionContext)
-    val host = "localhost"
-//    val host = "0.0.0.0"
-    val port = Try(System.getenv("PORT")).map(_.toInt).getOrElse(9000)
-    log.info("Server started")
-    Server.startHttpServer(router.route, host, port)(system, executionContext)
+    val guardianActor = Behaviors.setup[Nothing] { context =>
+      val userManagerActor = context.spawn(UserManager(), name = "userManagerActor")
+      context.watch(userManagerActor)
+
+      val host = "localhost"
+      val port = Try(System.getenv("PORT")).map(_.toInt).getOrElse(9000)
+      log.info("Server started")
+
+      val router = new TwitterRouter(userManagerActor)(context.system)
+      Server.startHttpServer(router.route, host, port)(context.system)
+
+      Behaviors.empty
+    }
+    val system = ActorSystem[Nothing](guardianActor, "TwitterApp")
   }
 }

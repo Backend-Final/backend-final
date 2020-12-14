@@ -1,3 +1,5 @@
+package http
+
 import akka.http.scaladsl.server.{Directive0, Directives}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.generic.auto._
