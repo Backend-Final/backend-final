@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "d72715cb-90a3-481b-b725-c0cb176d2514",
+		"_postman_id": "55ddfb35-3f2d-427c-bdb3-2e62e6eba932",
 		"name": "Backend-Final",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -144,7 +144,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"title\": \"Hello, Backend Final\",\n    \"content\": \"This is final project\",\n    \"user_id\": \"2e1f34ef-fcb4-4fb5-bd93-583ee46d3a77\"\n}",
+							"raw": "{\n    \"title\":\"\",\n    \"content\": \"This is final project\",\n    \"user_id\": \"2e1f34ef-fcb4-4fb5-bd93-583ee46d3a77\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -227,9 +227,9 @@
 					"response": []
 				},
 				{
-					"name": "POST Like Post",
+					"name": "PUT Like Post",
 					"request": {
-						"method": "POST",
+						"method": "PUT",
 						"header": [],
 						"body": {
 							"mode": "raw",
@@ -255,9 +255,9 @@
 					"response": []
 				},
 				{
-					"name": "POST DisLike Post",
+					"name": "PUT  DisLike Post",
 					"request": {
-						"method": "POST",
+						"method": "PUT",
 						"header": [],
 						"body": {
 							"mode": "raw",

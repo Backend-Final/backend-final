@@ -3,7 +3,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import org.slf4j.{Logger, LoggerFactory}
-import actors.UserManager
+import actors.{PostManager, UserManager}
 
 import scala.util.Try
 
@@ -13,13 +13,14 @@ object Main {
 
     val guardianActor = Behaviors.setup[Nothing] { context =>
       val userManagerActor = context.spawn(UserManager(), name = "userManagerActor")
+      val postManagerActor = context.spawn(PostManager(), name = "postManagerActor")
       context.watch(userManagerActor)
 
       val host = "localhost"
       val port = Try(System.getenv("PORT")).map(_.toInt).getOrElse(9000)
       log.info("Server started")
 
-      val router = new TwitterRouter(userManagerActor)(context.system)
+      val router = new TwitterRouter(userManagerActor, postManagerActor)(context.system)
       Server.startHttpServer(router.route, host, port)(context.system)
 
       Behaviors.empty

@@ -1,8 +1,8 @@
 package http
 
+import actors.PostManager.UpdatePost
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-
-import models.{CreateUserModel, UpdateUserModel}
+import models.{CreatePostModel, CreateUserModel, UpdatePostModel, UpdateUserModel}
 
 
 trait Validator[T] {
@@ -96,45 +96,45 @@ object UpdateUserValidator extends Validator[UpdateUserModel] { //FIX ME: Valida
     None
   }
 }
-//
-//object CreatePostValidator extends Validator[CreatePost]{
-//  override def validate(createPost: CreatePost): Option[APIError] = {
-//    if(createPost.title.isEmpty){
-//      Some(APIError(status = StatusCodes.BadRequest, msg = "title is empty"))
-//    }
-//    else if(createPost.content.isEmpty){
-//      Some(APIError(status = StatusCodes.BadRequest, msg = "content is empty"))
-//    }
-//    else if(createPost.user_id.isEmpty){
-//      Some(APIError(status = StatusCodes.BadRequest, msg = "you should assign user_id"))
-//    }
-//    else
-//      None
-//  }
-//}
-//
-//object UpdatePostValidator extends Validator[UpdatePost]{
-//  override def validate(updatePost: UpdatePost): Option[APIError] = {
-//
-//    updatePost.title match {
-//      case Some(x: String) => {
-//        if (x.isEmpty) {
-//          Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
-//        }
-//      }
-//      case None =>
-//        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
-//    }
-//    updatePost.content match {
-//      case Some(x: String) => {
-//        if (x.isEmpty) {
-//          Some(APIError(status = StatusCodes.BadRequest, msg = "content is required"))
-//        }
-//      }
-//      case None =>
-//        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
-//    }
-//
-//    None
-//  }
-//}
+
+object CreatePostValidator extends Validator[CreatePostModel]{
+  override def validate(createPost: CreatePostModel): Option[APIError] = {
+    if(createPost.title.isEmpty){
+      Some(APIError(status = StatusCodes.BadRequest, msg = "title is empty"))
+    }
+    else if(createPost.content.isEmpty){
+      Some(APIError(status = StatusCodes.BadRequest, msg = "content is empty"))
+    }
+    else if(createPost.user_id.isEmpty){
+      Some(APIError(status = StatusCodes.BadRequest, msg = "you should assign user_id"))
+    }
+    else
+      None
+  }
+}
+
+object UpdatePostValidator extends Validator[UpdatePostModel]{
+  override def validate(updatePost: UpdatePostModel): Option[APIError] = {
+
+    updatePost.title match {
+      case Some(x: String) => {
+        if (x.isEmpty) {
+          Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+        }
+      }
+      case None =>
+        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+    }
+    updatePost.content match {
+      case Some(x: String) => {
+        if (x.isEmpty) {
+          Some(APIError(status = StatusCodes.BadRequest, msg = "content is required"))
+        }
+      }
+      case None =>
+        Some(APIError(status = StatusCodes.BadRequest, msg = "title is required"))
+    }
+
+    None
+  }
+}

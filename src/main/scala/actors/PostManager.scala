@@ -6,7 +6,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.http.scaladsl.model.{DateTime, StatusCodes}
 import http.APIError
-import models.{Post, CreatePostModel, UpdatePostModel}
+import models.{Post, Like, CreatePostModel, UpdatePostModel}
 object PostManager {
   sealed trait Command
 
@@ -15,79 +15,124 @@ object PostManager {
   final case class GetPost(postId: String, replyTo: ActorRef[Post]) extends Command
   final case class CreatePost(post: CreatePostModel, replyTo: ActorRef[Post]) extends Command
   final case class UpdatePost(postId: String, post: UpdatePostModel, replyTo: ActorRef[Post]) extends Command
-  final case class DeletePost(postId: String, replyTo: ActorRef[ActionPerformed]) extends Command
+  final case class DeletePost(postId: String, replyTo: ActorRef[ActionPerformedPost]) extends Command
   final case class CheckPostById(postId: String, replyTo: ActorRef[Option[APIError]]) extends Command
 
-  final case class ActionPerformed(message: String)
+  final case class LikePost(postId:String, userId:String, replyTo: ActorRef[Post]) extends Command
+  final case class DislikePost(postId:String, replyTo:ActorRef[Post]) extends Command
+  final case class GetLikeList(replyTo:ActorRef[Seq[Like]]) extends Command
+
+  final case class ActionPerformedPost(message: String)
 
   var posts: Seq[Post] = Seq()
+  var likes: Seq[Like] = Seq()
 
-  private def userManager(): Behavior[Command] =
+  private def postManager(): Behavior[Command] =
     Behaviors.receiveMessagePartial {
       case GetPostList(replyTo) =>
-        replyTo ! users
+        replyTo ! posts
         Behaviors.same
-      case GetUser(userId, replyTo) =>
-        val user = users.find(user => user.id == userId)
-        user match {
+      case GetPost(postId, replyTo) =>
+        val post = posts.find(post => post.id == postId)
+        post match {
           case Some(x) =>
             replyTo ! x
         }
         Behaviors.same
-      case CreateUser(data, replyTo) =>
-        val user = User(
+      case CreatePost(data, replyTo) =>
+        val post = Post(
           id = UUID.randomUUID().toString,
-          username = data.username,
-          email = data.email,
-          password = data.password,
-          name = data.name,
-          surname = data.surname,
-          age = data.age
+          title = data.title,
+          content = data.content,
+          like_count = 0,
+          user_id = data.user_id
         )
-
-        users = users :+ user
-        replyTo ! user
+        posts = posts:+ post
+        replyTo ! post
         Behaviors.same
-      case UpdateUser(userId, data, replyTo) =>
-        val updatedUser = users.find(user => user.id == userId)
-        updatedUser match {
-          case Some(x: User) =>
-            var userToUpdate = x
-            userToUpdate = userToUpdate.copy(username = data.username.getOrElse(x.username))
-            userToUpdate = userToUpdate.copy(email = data.email.getOrElse(x.email))
-            userToUpdate = userToUpdate.copy(name = data.name.getOrElse(x.name))
-            userToUpdate = userToUpdate.copy(surname = data.surname.getOrElse(x.surname))
-            userToUpdate = userToUpdate.copy(password = data.password.getOrElse(x.password))
-            userToUpdate = userToUpdate.copy(age = data.age.getOrElse(x.age))
-            users = users.map(user => {
-              if (user.id == userToUpdate.id) {
-                userToUpdate
+
+      case UpdatePost(postId, data, replyTo) =>
+        val updatedPost = posts.find(post => post.id == postId)
+        updatedPost match {
+          case Some(x: Post) =>
+            var postToUpdate = x
+            postToUpdate = postToUpdate.copy(title = data.title.getOrElse(x.title))
+            posts = posts.map(post => {
+              if (post.id == postToUpdate.id) {
+                postToUpdate
               } else {
-                user
+                post
               }
             })
-            replyTo ! userToUpdate
+            replyTo ! postToUpdate
         }
         Behaviors.same
-      case DeleteUser(userId, replyTo) =>
-        val deletedUser = users.find(user => user.id == userId)
-        users = users.filter(user => user.id != userId)
-        deletedUser match {
+
+
+      case DeletePost(postId, replyTo) =>
+        val deletedPost = posts.find(post => post.id == postId)
+        posts = posts.filter(post => post.id != postId)
+        deletedPost match {
           case Some(_) =>
-            replyTo ! ActionPerformed(s"user with id ${userId} deleted successfully")
+            replyTo ! ActionPerformedPost(s"post with id ${postId} deleted successfully")
         }
         Behaviors.same
-      case CheckUserById(userId, replyTo) =>
-        val user = users.find(user => user.id == userId)
-        user match {
+
+      case CheckPostById(postId, replyTo) =>
+        val post = posts.find(post => post.id == postId)
+        post match {
           case Some(x) =>
             replyTo ! None
           case None =>
-            replyTo ! Some(APIError(status = StatusCodes.NotFound, msg = s"User with id=${userId} does not exist in Database"))
+            replyTo ! Some(APIError(status = StatusCodes.NotFound, msg = s"Post with id=${postId} does not exist in Database"))
         }
+        Behaviors.same
+
+      case LikePost(postId,userId, replyTo) =>
+        val post = posts.find(post=> post.id == postId)
+        val newLike = Like(
+          id = UUID.randomUUID().toString,
+          post_id = postId,
+          user_id = userId,
+          time = DateTime.now
+        )
+        likes = likes:+ newLike
+        post match {
+          case Some(x:Post) =>
+            var toLikePost = x
+            toLikePost = toLikePost.copy(like_count = x.like_count+1)
+            posts = posts.map(post => {
+              if (post.id == toLikePost.id) {
+                toLikePost
+              } else {
+                post
+              }
+            })
+            replyTo ! toLikePost
+        }
+        Behaviors.same
+
+      case DislikePost(postId, replyTo) =>
+        val post = posts.find(post=> post.id == postId)
+        likes = likes.filter(like=>like.post_id!=postId)
+        post match {
+          case Some(x:Post) =>
+            var toDisLikePost = x
+            toDisLikePost = toDisLikePost.copy(like_count = x.like_count-1)
+            posts = posts.map(post => {
+              if (post.id == toDisLikePost.id) {
+                toDisLikePost
+              } else {
+                post
+              }
+            })
+            replyTo ! toDisLikePost
+        }
+        Behaviors.same
+      case GetLikeList(replyTo)=>
+        replyTo ! likes
         Behaviors.same
     }
 
-
-  def apply(): Behavior[Command] = userManager()
+  def apply(): Behavior[Command] = postManager()
 }

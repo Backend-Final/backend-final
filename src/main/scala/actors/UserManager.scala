@@ -14,10 +14,10 @@ object UserManager {
   final case class GetUser(userId: String, replyTo: ActorRef[User]) extends Command
   final case class CreateUser(user: CreateUserModel, replyTo: ActorRef[User]) extends Command
   final case class UpdateUser(userId: String, user: UpdateUserModel, replyTo: ActorRef[User]) extends Command
-  final case class DeleteUser(userId: String, replyTo: ActorRef[ActionPerformed]) extends Command
+  final case class DeleteUser(userId: String, replyTo: ActorRef[ActionPerformedUser]) extends Command
   final case class CheckUserById(userId: String, replyTo: ActorRef[Option[APIError]]) extends Command
 
-  final case class ActionPerformed(message: String)
+  final case class ActionPerformedUser(message: String)
   final case class UserList(users: Seq[User])
 
   var users: Seq[User] = Seq(
@@ -50,6 +50,7 @@ object UserManager {
         users = users :+ user
         replyTo ! user
         Behaviors.same
+
       case UpdateUser(userId, data, replyTo) =>
         val updatedUser = users.find(user => user.id == userId)
         updatedUser match {
@@ -76,7 +77,7 @@ object UserManager {
         users = users.filter(user => user.id != userId)
         deletedUser match {
           case Some(_) =>
-            replyTo ! ActionPerformed(s"user with id ${userId} deleted successfully")
+            replyTo ! ActionPerformedUser(s"user with id ${userId} deleted successfully")
         }
         Behaviors.same
       case CheckUserById(userId, replyTo) =>
